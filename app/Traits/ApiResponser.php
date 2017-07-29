@@ -4,6 +4,7 @@
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Validator;
 
 	trait ApiResponser {
@@ -27,9 +28,10 @@ use Illuminate\Support\Facades\Validator;
 			$collection = $this->sortData($collection, $transformer);
 			$collection = $this->paginate($collection);
 			$collection = $this->transformData($collection, $transformer); 
+			$collection = $this->cacheResponse($collection); 
 
 			return $this->successResponse($collection, $code);
-		}
+		}	
 
 		protected function showOne(Model $model, $code = 200) {
 			$transformer = $model->transformer;
@@ -92,6 +94,21 @@ use Illuminate\Support\Facades\Validator;
 			$transformation = fractal($data, new $transformer);
 
 			return $transformation->toArray();
+		}
+
+		protected function cacheResponse($data) {
+			$url = request()->url();
+			$queryParam = request()->query();
+
+			ksort($queryParam);
+
+			$queryString = http_build_query($queryParam);
+
+			$fullUrl = "{$url}?{$queryString}";
+
+			return Cache::remember($fullUrl, 30/60, function() use ($data) {
+				return $data;
+			});
 		}
 	}
  ?>
